@@ -34,7 +34,6 @@ public class OrderController {
     public ResponseEntity<ResponseOrderProcessed> processedOrder(@RequestBody RequestProcessorOrder requestProcessorOrder){
         var response = processorStatusOrderService.updateOrderStatus(requestProcessorOrder);
         return ResponseEntity.status(HttpStatus.CREATED).body(response);
-
     }
 
 

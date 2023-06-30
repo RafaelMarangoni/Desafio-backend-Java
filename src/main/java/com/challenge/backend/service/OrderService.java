@@ -11,15 +11,10 @@ import com.challenge.backend.request.Id;
 import com.challenge.backend.request.RequestOrder;
 import com.challenge.backend.response.ResponseCreateOrder;
 import org.springframework.beans.factory.annotation.Autowired;
-
-
 import org.springframework.stereotype.Service;
 
 import java.math.BigDecimal;
-import java.util.ArrayList;
-import java.util.List;
-import java.util.Optional;
-import java.util.UUID;
+import java.util.*;
 import java.util.stream.Collectors;
 
 @Service
@@ -67,10 +62,24 @@ public class OrderService {
     }
 
     private static void buildItems(Items item, List<Items> itemsList, List<ProductDTO> matchingProducts) {
+        Map<Integer, Integer> productCounts = new HashMap<>();
+
         for (ProductDTO product : matchingProducts) {
-            item.setId(product.getId());
+            int productId = product.getId();
+
+            // Verifica se o ID do produto já existe no mapa
+            if (productCounts.containsKey(productId)) {
+                // Se existir, incrementa a quantidade
+                int currentCount = productCounts.get(productId);
+                productCounts.put(productId, currentCount + 1);
+            } else {
+                // Se não existir, adiciona o ID do produto ao mapa com quantidade 1
+                productCounts.put(productId, 1);
+            }
+
+            item.setId(productId);
             item.setPrice(product.getPrice());
-            item.setAmount(1);  // Definir a quantidade como 1 ou usar um valor fixo
+            item.setAmount(productCounts.get(productId)); // Define a quantidade com base no mapa
 
             // Calcular o valor parcial (partialAmount) com base no preço e quantidade
             BigDecimal partialAmount = product.getPrice().multiply(BigDecimal.valueOf(item.getAmount()));
