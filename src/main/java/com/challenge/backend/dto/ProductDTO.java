@@ -4,12 +4,14 @@ import lombok.Builder;
 import lombok.Getter;
 import lombok.Setter;
 
+import java.math.BigDecimal;
+
 @Getter
 @Setter
 @Builder
-public class UserDTO {
+public class ProductDTO {
 
     private int id;
-    private String email;
-    private String username;
+    private BigDecimal price;
+
 }
