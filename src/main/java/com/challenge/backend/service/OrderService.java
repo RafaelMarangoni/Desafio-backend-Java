@@ -1,42 +1,41 @@
 package com.challenge.backend.service;
 
 import com.challenge.backend.OrderRepository;
-import com.challenge.backend.client.ProductFeignClient;
-import com.challenge.backend.client.UserFeignClient;
+import com.challenge.backend.client.RequestsClient;
 import com.challenge.backend.dto.Items;
 import com.challenge.backend.dto.ProductDTO;
 import com.challenge.backend.dto.UserDTO;
 import com.challenge.backend.entity.OrderEntity;
-import com.challenge.backend.request.Id;
 import com.challenge.backend.request.RequestOrder;
 import com.challenge.backend.response.ResponseCreateOrder;
+import com.challenge.backend.utils.Utils;
 import org.springframework.beans.factory.annotation.Autowired;
 import org.springframework.stereotype.Service;
 
 import java.math.BigDecimal;
 import java.util.*;
-import java.util.stream.Collectors;
 
 @Service
 public class OrderService {
 
     @Autowired
-    UserFeignClient userFeignClient;
+    private OrderRepository orderRepository;
     @Autowired
-    ProductFeignClient productFeignClient;
+    private RequestsClient requestsClient;
+
     @Autowired
-    OrderRepository orderRepository;
+    private Utils utils;
 
     public ResponseCreateOrder createOrder(RequestOrder requestOrder) {
         OrderEntity orderEntity = new OrderEntity();
         Items item = new Items();
         List<Items> itemsList = new ArrayList<>();
-        var responseUser = getAll();
-        var responseProducts = getProduct();
+        var responseUser = requestsClient.getAll();
+        var responseProducts = requestsClient.getProduct();
 
-        var listOfvalidateUser = validadeUser(requestOrder, responseUser);
-        List<Integer> productIds = getProductIds(requestOrder);
-        List<ProductDTO> matchingProducts = validateProduts(responseProducts, productIds);
+        var listOfvalidateUser = utils.validadeUser(requestOrder, responseUser);
+        List<Integer> productIds = utils.getProductIds(requestOrder);
+        List<ProductDTO> matchingProducts = utils.validateProduts(responseProducts, productIds);
         BigDecimal totalPrice = sumPrices(matchingProducts);
         buildItems(item, itemsList, matchingProducts);
         saveOrder(orderEntity, listOfvalidateUser, totalPrice);
@@ -95,31 +94,6 @@ public class OrderService {
                 .reduce(BigDecimal.ZERO, BigDecimal::add);
     }
 
-    private static List<ProductDTO> validateProduts(List<ProductDTO> responseProducts, List<Integer> productIds) {
-        return responseProducts.stream()
-                .filter(product -> productIds.contains(product.getId()))
-                .collect(Collectors.toList());
-    }
-
-    private static List<Integer> getProductIds(RequestOrder requestOrder) {
-        return requestOrder.getProducts().stream()
-                .map(Id::getId)
-                .collect(Collectors.toList());
-    }
-
-    private static Optional<UserDTO> validadeUser(RequestOrder requestOrder, List<UserDTO> responseUser) {
-        return responseUser.stream().filter(idUser -> requestOrder.getUserID().equals(idUser.getId())).findFirst();
-    }
-
-    public List<UserDTO> getAll() {
-        var response = userFeignClient.getUsers();
-        return response;
-    }
-
-    public List<ProductDTO> getProduct() {
-        var response = productFeignClient.getProducts();
-        return response;
-    }
 }
 
 
