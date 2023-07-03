@@ -1,4 +1,4 @@
-package com.challenge.backend;
+package com.challenge.backend.repository;
 
 import com.challenge.backend.entity.OrderEntity;
 import org.springframework.data.jpa.repository.JpaRepository;

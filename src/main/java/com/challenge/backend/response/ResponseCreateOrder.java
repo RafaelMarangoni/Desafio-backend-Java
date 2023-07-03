@@ -18,7 +18,7 @@ public class ResponseCreateOrder {
 
     private UUID id;
     private int userId;
-    private String Status;
+    private String status;
     private BigDecimal totalPrice;
     private List<Items> items;
 

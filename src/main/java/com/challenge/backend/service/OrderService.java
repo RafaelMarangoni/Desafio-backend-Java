@@ -1,11 +1,13 @@
 package com.challenge.backend.service;
 
-import com.challenge.backend.OrderRepository;
 import com.challenge.backend.client.RequestsClient;
 import com.challenge.backend.dto.Items;
 import com.challenge.backend.dto.ProductDTO;
 import com.challenge.backend.dto.UserDTO;
 import com.challenge.backend.entity.OrderEntity;
+import com.challenge.backend.entity.OrderItemsEntity;
+import com.challenge.backend.repository.OrderItemsRepository;
+import com.challenge.backend.repository.OrderRepository;
 import com.challenge.backend.request.RequestOrder;
 import com.challenge.backend.response.ResponseCreateOrder;
 import com.challenge.backend.utils.Utils;
@@ -20,6 +22,10 @@ public class OrderService {
 
     @Autowired
     private OrderRepository orderRepository;
+
+    @Autowired
+    private OrderItemsRepository orderItemsRepository;
+
     @Autowired
     private RequestsClient requestsClient;
 
@@ -28,39 +34,53 @@ public class OrderService {
 
     public ResponseCreateOrder createOrder(RequestOrder requestOrder) {
         OrderEntity orderEntity = new OrderEntity();
-        Items item = new Items();
-        List<Items> itemsList = new ArrayList<>();
+        List<OrderItemsEntity> orderItemsList = new ArrayList<>();
+
         var responseUser = requestsClient.getAll();
         var responseProducts = requestsClient.getProduct();
 
         var listOfvalidateUser = utils.validadeUser(requestOrder, responseUser);
         List<Integer> productIds = utils.getProductIds(requestOrder);
         List<ProductDTO> matchingProducts = utils.validateProduts(responseProducts, productIds);
+
         BigDecimal totalPrice = sumPrices(matchingProducts);
-        buildItems(item, itemsList, matchingProducts);
-        saveOrder(orderEntity, listOfvalidateUser, totalPrice);
+        buildItems(orderItemsList, matchingProducts);
+        saveOrder(orderEntity, listOfvalidateUser, totalPrice, orderItemsList);
 
-        return createOrderResponseBuild(orderEntity, itemsList);
-
+        return createOrderResponseBuild(orderEntity, orderItemsList);
     }
 
-    private static ResponseCreateOrder createOrderResponseBuild(OrderEntity orderEntity, List<Items> itemsList) {
+    private static ResponseCreateOrder createOrderResponseBuild(OrderEntity orderEntity, List<OrderItemsEntity> orderItemsList) {
+        List<Items> itemsList = new ArrayList<>();
+
+        for (OrderItemsEntity orderItemsEntity : orderItemsList) {
+            Items item = new Items();
+            item.setId(orderItemsEntity.getProductId());
+            item.setPrice(orderItemsEntity.getPrice());
+            item.setAmount(orderItemsEntity.getQuantity());
+            item.setPartialAmount(orderItemsEntity.getPrice().multiply(BigDecimal.valueOf(orderItemsEntity.getQuantity())));
+            itemsList.add(item);
+        }
+
         return ResponseCreateOrder.builder()
-                .id(UUID.randomUUID())
+                .id(orderEntity.getId())
                 .totalPrice(orderEntity.getTotalPrice())
-                .Status("PENDING")
+                .status(orderEntity.getStatus())
                 .items(itemsList)
                 .build();
     }
 
-    private void saveOrder(OrderEntity orderEntity, Optional<UserDTO> listOfvalidateUser, BigDecimal totalPrice) {
+    private void saveOrder(OrderEntity orderEntity, Optional<UserDTO> listOfvalidateUser, BigDecimal totalPrice, List<OrderItemsEntity> orderItemsList) {
+        orderEntity.setId(UUID.randomUUID());
         orderEntity.setStatus("PENDING");
         orderEntity.setTotalPrice(totalPrice);
-        orderEntity.setUserId(listOfvalidateUser.map(UserDTO::getId).orElse(1));
+        orderEntity.setUserId(listOfvalidateUser.map(UserDTO::getId).orElseThrow());
+        orderEntity.setItems(orderItemsList); // Define a lista de itens do pedido
+        orderItemsList.forEach(orderItemsEntity -> orderItemsEntity.setOrder(orderEntity)); // Define a relação inversa entre item e pedido
         orderRepository.save(orderEntity);
     }
 
-    private static void buildItems(Items item, List<Items> itemsList, List<ProductDTO> matchingProducts) {
+    private static void buildItems(List<OrderItemsEntity> orderItemsList, List<ProductDTO> matchingProducts) {
         Map<Integer, Integer> productCounts = new HashMap<>();
 
         for (ProductDTO product : matchingProducts) {
@@ -76,15 +96,11 @@ public class OrderService {
                 productCounts.put(productId, 1);
             }
 
-            item.setId(productId);
-            item.setPrice(product.getPrice());
-            item.setAmount(productCounts.get(productId)); // Define a quantidade com base no mapa
-
-            // Calcular o valor parcial (partialAmount) com base no preço e quantidade
-            BigDecimal partialAmount = product.getPrice().multiply(BigDecimal.valueOf(item.getAmount()));
-            item.setPartialAmount(partialAmount);
-
-            itemsList.add(item);
+            OrderItemsEntity orderItemsEntity = new OrderItemsEntity();
+            orderItemsEntity.setPrice(product.getPrice());
+            orderItemsEntity.setProductId(product.getId());
+            orderItemsEntity.setQuantity(productCounts.get(productId));
+            orderItemsList.add(orderItemsEntity);
         }
     }
 
@@ -93,7 +109,4 @@ public class OrderService {
                 .map(ProductDTO::getPrice)
                 .reduce(BigDecimal.ZERO, BigDecimal::add);
     }
-
 }
-
-

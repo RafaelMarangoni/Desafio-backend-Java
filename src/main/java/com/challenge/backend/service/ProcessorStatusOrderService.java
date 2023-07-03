@@ -1,7 +1,7 @@
 package com.challenge.backend.service;
 
 import com.challenge.backend.Exceptions.BusinessException;
-import com.challenge.backend.OrderRepository;
+import com.challenge.backend.repository.OrderRepository;
 import com.challenge.backend.entity.OrderEntity;
 import com.challenge.backend.request.RequestProcessorOrder;
 import com.challenge.backend.response.ResponseOrderProcessed;
@@ -10,7 +10,6 @@ import org.springframework.stereotype.Service;
 import org.springframework.transaction.annotation.Transactional;
 
 import java.util.Optional;
-import java.util.UUID;
 
 @Service
 public class ProcessorStatusOrderService {

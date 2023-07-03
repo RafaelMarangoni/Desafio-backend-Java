@@ -14,7 +14,6 @@ import java.util.UUID;
 @Table(name = "orders", schema = "public")
 public class OrderEntity {
     @Id
-    @GeneratedValue(strategy = GenerationType.UUID)
     @Column(name = "id", nullable = false)
     private UUID id;
 

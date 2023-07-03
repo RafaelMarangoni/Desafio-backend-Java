@@ -1,25 +1,31 @@
 package com.challenge.backend.entity;
 
 import jakarta.persistence.*;
-import jakarta.persistence.criteria.Order;
 import lombok.Getter;
 import lombok.Setter;
 
 import java.math.BigDecimal;
 
-@Entity
-@Table(name = "order_items", schema = "public")
 @Getter
 @Setter
+@Entity
+@Table(name = "order_items", schema = "public")
 public class OrderItemsEntity {
     @Id
-    @GeneratedValue(strategy = GenerationType.AUTO)
+    @Column(name="id")
+    @GeneratedValue(strategy = GenerationType.IDENTITY)
     private Integer id;
 
     @Column(name = "price")
     private BigDecimal price;
 
+    @Column(name="productid")
+    private Integer productId;
+
+    @Column(name="quantity")
+    private Integer quantity;
+
     @ManyToOne
-    @JoinColumn(name = "order_id")
+    @JoinColumn(name = "orderId")
     private OrderEntity order;
 }
