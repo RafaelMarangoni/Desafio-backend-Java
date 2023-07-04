@@ -36,12 +36,11 @@ public class OrderService {
         OrderEntity orderEntity = new OrderEntity();
         List<OrderItemsEntity> orderItemsList = new ArrayList<>();
 
-        var responseUser = requestsClient.getAll();
         var responseProducts = requestsClient.getProduct();
 
-        var listOfvalidateUser = utils.validadeUser(requestOrder, responseUser);
+        var listOfvalidateUser = utils.validadeUser(requestOrder.getUserId());
         List<Integer> productIds = utils.getProductIds(requestOrder);
-        List<ProductDTO> matchingProducts = utils.validateProduts(responseProducts, productIds);
+        List<ProductDTO> matchingProducts = Utils.validateProduts(responseProducts, productIds);
 
         BigDecimal totalPrice = sumPrices(matchingProducts);
         buildItems(orderItemsList, matchingProducts);
@@ -80,8 +79,19 @@ public class OrderService {
         orderRepository.save(orderEntity);
     }
 
+    private void savePutOrder(OrderEntity orderEntity, Optional<UserDTO> listOfvalidateUser, BigDecimal totalPrice, List<OrderItemsEntity> orderItemsList) {
+        orderEntity.setId(UUID.randomUUID());
+        orderEntity.setStatus("PENDING");
+        orderEntity.setTotalPrice(totalPrice);
+        orderEntity.setUserId(listOfvalidateUser.map(UserDTO::getId).orElseThrow());
+        orderEntity.setItems(orderItemsList); // Define a lista de itens do pedido
+        orderItemsList.forEach(orderItemsEntity -> orderItemsEntity.setOrder(orderEntity)); // Define a relação inversa entre item e pedido
+        orderRepository.save(orderEntity);
+    }
+
     private static void buildItems(List<OrderItemsEntity> orderItemsList, List<ProductDTO> matchingProducts) {
         Map<Integer, Integer> productCounts = new HashMap<>();
+        Map<Integer, BigDecimal> productPrices = new HashMap<>();
 
         for (ProductDTO product : matchingProducts) {
             int productId = product.getId();
@@ -94,12 +104,20 @@ public class OrderService {
             } else {
                 // Se não existir, adiciona o ID do produto ao mapa com quantidade 1
                 productCounts.put(productId, 1);
+                productPrices.put(productId, product.getPrice());
             }
+        }
+
+        // Cria os itens do pedido com as quantidades e preços corretos
+        for (Map.Entry<Integer, Integer> entry : productCounts.entrySet()) {
+            int productId = entry.getKey();
+            int quantity = entry.getValue();
+            BigDecimal price = productPrices.get(productId);
 
             OrderItemsEntity orderItemsEntity = new OrderItemsEntity();
-            orderItemsEntity.setPrice(product.getPrice());
-            orderItemsEntity.setProductId(product.getId());
-            orderItemsEntity.setQuantity(productCounts.get(productId));
+            orderItemsEntity.setPrice(price);
+            orderItemsEntity.setProductId(productId);
+            orderItemsEntity.setQuantity(quantity);
             orderItemsList.add(orderItemsEntity);
         }
     }
@@ -108,5 +126,22 @@ public class OrderService {
         return matchingProducts.stream()
                 .map(ProductDTO::getPrice)
                 .reduce(BigDecimal.ZERO, BigDecimal::add);
+    }
+
+    public ResponseCreateOrder addItemToOrder(RequestOrder requestOrder) {
+        List<OrderItemsEntity> orderItemsList = new ArrayList<>();
+        OrderEntity orderEntity = new OrderEntity();
+        var uuid = orderRepository.findById(requestOrder.getId());
+        var userId = utils.validadeUser(requestOrder.getUserId());
+        var responseProducts = requestsClient.getProduct();
+        List<Integer> productIds = utils.getProductUpDateOrder(requestOrder);
+        List<ProductDTO> matchingProducts = utils.validateProduts(responseProducts, productIds);
+
+        BigDecimal totalPrice = sumPrices(matchingProducts);
+        buildItems(orderItemsList, matchingProducts);
+
+        savePutOrder(orderEntity, userId, totalPrice, orderItemsList);
+
+        return createOrderResponseBuild(orderEntity, orderItemsList);
     }
 }
